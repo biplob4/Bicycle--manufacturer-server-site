@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
-// const stripe = require("stripe")(process.env.STRIPE_KEY);
+const stripe = require("stripe")(process.env.STRIPE_KEY);
 
 
 // middleware
@@ -50,6 +50,8 @@ async function run() {
         const partsCollection = client.db("bicycel-parts").collection("parts");
         const usersCollection = client.db("bicycel-parts").collection("users");
         const reviwsCollection = client.db("bicycel-parts").collection("review");
+        const orderCollection = client.db("bicycel-parts").collection("order");
+        const paymentsCollection = client.db("bicycel-parts").collection("payment");
 
         app.get("/parts", async (req, res) => {
             const parts = await partsCollection.find().toArray();
@@ -61,6 +63,20 @@ async function run() {
             const query = { _id: ObjectId(id) };
             const parts = await partsCollection.findOne(query);
             res.send(parts);
+        })
+
+        app.delete('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollection.deleteOne(query);
+            res.send(order);
+        })
+
+        app.get('/order/:id',verifyjwt, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollection.findOne(query);
+            res.send(order);
         })
 
         app.get('/users', verifyjwt, async (req, res) => {
@@ -103,6 +119,52 @@ async function run() {
             };
             const result = await usersCollection.updateOne(filter, updateDoc);
             res.send(result);
+        })
+
+        app.post('/order', async (req, res) => {
+            const order = req.body;
+            const rasult = await orderCollection.insertOne(order);
+            return res.send({ success: true, rasult });
+        })
+
+        app.get('/order', verifyjwt, async (req, res) => {
+            const email = req.query.user;
+            const decoddedEmail = req.decoded.email;
+            if (email === decoddedEmail) {
+                const query = { email: email };
+                const rasult = await orderCollection.find(query).toArray();
+                return res.send(rasult);
+            }
+            else {
+                return res.status(403).send({ message: 'Forbidden access' });
+            }
+        })
+
+        app.post('/create-payment-intent', verifyjwt, async (req, res) => {
+            const service = req.body;
+            const price = service.price;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret })
+        })
+
+        app.patch('/order/:id', verifyjwt, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    paid: true,
+                    trnangectionId: payment.trnangectionId
+                }
+            }
+            const updateOrder = await orderCollection.updateOne(filter, updateDoc);
+            const result = await paymentsCollection.insertOne(payment);
+            res.send(updateOrder);
         })
 
     }
