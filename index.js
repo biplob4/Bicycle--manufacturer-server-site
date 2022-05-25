@@ -12,16 +12,6 @@ const stripe = require("stripe")(process.env.STRIPE_KEY);
 app.use(cors());
 app.use(express.json());
 
-const verifyAdmin = async (req, res, next) => {
-    const requester = req.decoded.email;
-    const requesterAccount = await usersCollection.findOne({ email: requester });
-    if (requesterAccount.role === 'admin') {
-        next();
-    }
-    else {
-        res.status(403).send({ message: 'forbidden' });
-    }
-}
 
 function verifyjwt(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -53,6 +43,18 @@ async function run() {
         const orderCollection = client.db("bicycel-parts").collection("order");
         const paymentsCollection = client.db("bicycel-parts").collection("payment");
 
+        const verifyAdmin = async (req, res, next) => {
+            const requester = req.decoded.email;
+            const requesterAccount = await usersCollection.findOne({ email: requester });
+            if (requesterAccount.role === 'admin') {
+                next();
+            }
+            else {
+                res.status(403).send({ message: 'forbidden' });
+            }
+        }
+
+
         app.get("/parts", async (req, res) => {
             const parts = await partsCollection.find().toArray();
             res.send(parts);
@@ -72,7 +74,7 @@ async function run() {
             res.send(order);
         })
 
-        app.get('/order/:id',verifyjwt, async (req, res) => {
+        app.get('/order/:id', verifyjwt, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const order = await orderCollection.findOne(query);
@@ -91,6 +93,18 @@ async function run() {
             res.send(result);
         })
 
+        app.post('/review', async (req, res) => {
+            const query = req.body;
+            const result = await reviwsCollection.insertOne(query);
+            res.send(result);
+        })
+
+        app.post('/addParts',verifyjwt,verifyAdmin, async (req, res) => {
+            const query = req.body;
+            const result = await partsCollection.insertOne(query);
+            res.send(result);
+        })
+
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
@@ -102,6 +116,16 @@ async function run() {
             const result = await usersCollection.updateOne(filter, updateDoc, option);
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
             res.send({ result, token });
+        })
+
+        app.put('/orderAll/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: { delivary: "shipped" },
+            };
+            const result = await orderCollection.updateOne(filter, updateDoc);
+            res.send(result);
         })
 
         app.get('/admin/:email', async (req, res) => {
@@ -119,6 +143,11 @@ async function run() {
             };
             const result = await usersCollection.updateOne(filter, updateDoc);
             res.send(result);
+        })
+
+        app.get('/orderAll',verifyjwt,verifyAdmin, async (req, res) => {
+            const order = await orderCollection.find().toArray();
+            res.send(order);
         })
 
         app.post('/order', async (req, res) => {
