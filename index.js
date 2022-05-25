@@ -86,6 +86,23 @@ async function run() {
             res.send(users);
         })
 
+        app.delete('/users/:id', verifyjwt, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        app.put('/admin/:email', verifyjwt, verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const updateDoc = {
+                $set: { role: 'admin' },
+            };
+            const result = await usersCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+
         app.get('/review', async (req, res) => {
             const users = await reviwsCollection.find().toArray();
             const comment = users.length - 6;
@@ -99,7 +116,7 @@ async function run() {
             res.send(result);
         })
 
-        app.post('/addParts',verifyjwt,verifyAdmin, async (req, res) => {
+        app.post('/addParts', verifyjwt, verifyAdmin, async (req, res) => {
             const query = req.body;
             const result = await partsCollection.insertOne(query);
             res.send(result);
@@ -118,15 +135,15 @@ async function run() {
             res.send({ result, token });
         })
 
-        app.put('/orderAll/:id', async (req, res) => {
-            const id = req.params.id;
-            const filter = { _id: ObjectId(id) };
-            const updateDoc = {
-                $set: { delivary: "shipped" },
-            };
-            const result = await orderCollection.updateOne(filter, updateDoc);
-            res.send(result);
-        })
+        // app.put('/orderAll/:id', async (req, res) => {
+        //     const id = req.params.id;
+        //     const filter = { _id: ObjectId(id) };
+        //     const updateDoc = {
+        //         $set: { delivary: "shipped" },
+        //     };
+        //     const result = await orderCollection.updateOne(filter, updateDoc);
+        //     res.send(result);
+        // })
 
         app.get('/admin/:email', async (req, res) => {
             const email = req.params.email;
@@ -145,7 +162,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/orderAll',verifyjwt,verifyAdmin, async (req, res) => {
+        app.get('/orderAll', verifyjwt, verifyAdmin, async (req, res) => {
             const order = await orderCollection.find().toArray();
             res.send(order);
         })
