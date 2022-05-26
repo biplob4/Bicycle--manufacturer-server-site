@@ -67,6 +67,13 @@ async function run() {
             res.send(parts);
         })
 
+        app.delete('/parts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const parts = await partsCollection.deleteOne(query);
+            res.send(parts);
+        })
+
         app.delete('/order/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
