@@ -8,7 +8,6 @@ require('dotenv').config();
 const stripe = require("stripe")(process.env.STRIPE_KEY);
 
 
-
 // middleware
 app.use(cors());
 app.use(express.json());
